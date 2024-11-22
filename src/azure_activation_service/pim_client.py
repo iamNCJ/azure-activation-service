@@ -311,6 +311,35 @@ class PIMClient:
 
         return response.json()
 
+    def serialize_roles(self, roles):
+        """Convert Role objects to dictionary for caching"""
+        return [{
+            'id': role.id,
+            'display_name': role.display_name,
+            'resource_name': role.resource_name,
+            'resource_type': role.resource_type,
+            'role_definition_id': role.role_definition_id,
+            'principal_id': role.principal_id,
+            'assignment_type': role.assignment_type,
+            'end_date_time': role.end_date_time.isoformat() if role.end_date_time else None
+        } for role in roles]
+
+    def deserialize_roles(self, data):
+        """Convert cached dictionary back to Role objects"""
+        roles = []
+        for role_data in data:
+            role = Role()
+            role.id = role_data['id']
+            role.display_name = role_data['display_name']
+            role.resource_name = role_data['resource_name']
+            role.resource_type = role_data['resource_type']
+            role.role_definition_id = role_data['role_definition_id']
+            role.principal_id = role_data['principal_id']
+            role.assignment_type = role_data['assignment_type']
+            role.end_date_time = datetime.fromisoformat(role_data['end_date_time']) if role_data['end_date_time'] else None
+            roles.append(role)
+        return roles
+
 
 def main():
     """Example usage of the PIMClient."""
