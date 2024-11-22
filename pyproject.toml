@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "azure-activation-service"
+version = "0.1.0"
+description = "Auto Activate Azure Roles"
+authors = [{name = "NCJ", email = "author@example.com"}]
+license = {file = "LICENSE"}
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "requests",
+    "azure-identity",
+    "click>=8.0.0",
+    "tabulate"
+]
+
+[project.scripts]
+azure-activate = "azure_activation_service.cli:main"
+aas = "azure_activation_service.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}

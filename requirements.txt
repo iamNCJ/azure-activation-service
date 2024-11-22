@@ -1,2 +1,4 @@
 requests
 azure-identity
+tabulate
+click

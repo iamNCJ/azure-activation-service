@@ -1,11 +1,11 @@
-from azure.identity import AzureCliCredential
-from azure.core.exceptions import ClientAuthenticationError
 import requests
-import json
 import uuid
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 from dataclasses import dataclass
+
+from azure.identity import AzureCliCredential
+from azure.core.exceptions import ClientAuthenticationError
 
 
 @dataclass
