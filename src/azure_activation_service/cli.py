@@ -8,6 +8,15 @@ import signal
 import sys
 from datetime import datetime
 from pathlib import Path
+import os
+
+
+def get_entry_point():
+    """Get the entry point name in different contexts."""
+    
+    # First try sys.argv[0]
+    if sys.argv[0]:
+        return os.path.abspath(sys.argv[0])
 
 
 @click.group()
@@ -335,6 +344,7 @@ def service(interval: int):
 @click.option('--name', '-n', default='azure-pim-activator', help='Name for the systemd service')
 def generate_service(interval: int, name: str):
     """Generate a systemd user service file for automatic role activation"""
+    service_entrypoint = get_entry_point()
     # Sanitize service name and ensure it ends with .service
     service_name = name.replace(' ', '-').lower()
     if not service_name.endswith('.service'):
@@ -348,7 +358,8 @@ Wants=network-online.target
 [Service]
 Type=simple
 Environment=PATH=/usr/local/bin:/usr/bin:/bin
-ExecStart=azure-pim service --interval {interval}
+Environment=AZURE_CONFIG_DIR={os.environ.get('AZURE_CONFIG_DIR', '')}
+ExecStart={service_entrypoint} service --interval {interval}
 Restart=always
 RestartSec=10
 
