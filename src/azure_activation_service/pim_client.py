@@ -33,6 +33,43 @@ class Role:
                 f"Resource: {self.resource_name} ({self.resource_type})\n"
                 f"Status: {status}{expiry}")
 
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert the role to a dictionary."""
+        return {
+            'id': self.id,
+            'name': self.name,
+            'scope': self.scope,
+            'display_name': self.display_name,
+            'resource_name': self.resource_name,
+            'resource_type': self.resource_type,
+            'role_definition_id': self.role_definition_id,
+            'role_eligibility_schedule_id': self.role_eligibility_schedule_id,
+            'principal_id': self.principal_id,
+            'assignment_name': self.assignment_name,
+            'assignment_type': self.assignment_type,
+            'start_date_time': self.start_date_time.isoformat() if self.start_date_time else None,
+            'end_date_time': self.end_date_time.isoformat() if self.end_date_time else None
+        }
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Role':
+        """Create a Role object from a dictionary."""
+        return cls(
+            id=data['id'],
+            name=data['name'],
+            scope=data['scope'],
+            display_name=data['display_name'],
+            resource_name=data['resource_name'],
+            resource_type=data['resource_type'],
+            role_definition_id=data['role_definition_id'],
+            role_eligibility_schedule_id=data['role_eligibility_schedule_id'],
+            principal_id=data['principal_id'],
+            assignment_name=data['assignment_name'],
+            assignment_type=data['assignment_type'],
+            start_date_time=datetime.fromisoformat(data['start_date_time']) if data['start_date_time'] else None,
+            end_date_time=datetime.fromisoformat(data['end_date_time']) if data['end_date_time'] else None
+        )
+
 
 class PIMError(Exception):
     """Base exception for PIM-related errors."""
@@ -313,32 +350,11 @@ class PIMClient:
 
     def serialize_roles(self, roles):
         """Convert Role objects to dictionary for caching"""
-        return [{
-            'id': role.id,
-            'display_name': role.display_name,
-            'resource_name': role.resource_name,
-            'resource_type': role.resource_type,
-            'role_definition_id': role.role_definition_id,
-            'principal_id': role.principal_id,
-            'assignment_type': role.assignment_type,
-            'end_date_time': role.end_date_time.isoformat() if role.end_date_time else None
-        } for role in roles]
+        return [role.to_dict() for role in roles]
 
     def deserialize_roles(self, data):
         """Convert cached dictionary back to Role objects"""
-        roles = []
-        for role_data in data:
-            role = Role()
-            role.id = role_data['id']
-            role.display_name = role_data['display_name']
-            role.resource_name = role_data['resource_name']
-            role.resource_type = role_data['resource_type']
-            role.role_definition_id = role_data['role_definition_id']
-            role.principal_id = role_data['principal_id']
-            role.assignment_type = role_data['assignment_type']
-            role.end_date_time = datetime.fromisoformat(role_data['end_date_time']) if role_data['end_date_time'] else None
-            roles.append(role)
-        return roles
+        return [Role.from_dict(role_data) for role_data in data]
 
 
 def main():

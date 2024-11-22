@@ -21,7 +21,7 @@ def activate(role_id: str, justification: str):
         roles = pim.get_roles()
         
         # Find role by ID
-        role = next((r for r in roles if r.id == role_id), None)
+        role = next((r for r in roles if r.name == role_id), None)
         if not role:
             click.echo(f"Error: Role with ID {role_id} not found.", err=True)
             return
@@ -31,7 +31,12 @@ def activate(role_id: str, justification: str):
             return
             
         result = pim.activate_role(role, justification)
-        click.echo(f"Successfully activated role: {role.display_name}")
+        click.echo(f"Successfully activated role: {role.display_name} - {role.resource_name}")
+
+        # update the cache
+        roles = pim.get_roles()
+        with open(ROLES_CACHE_FILE, 'w') as f:
+            json.dump(pim.serialize_roles(roles), f, indent=4)
         
     except NotAuthenticatedError:
         click.echo("Error: Not authenticated with Azure. Please run 'az login' first.", err=True)
@@ -49,7 +54,7 @@ def deactivate(role_id: str, justification: str):
         roles = pim.get_roles()
         
         # Find role by ID
-        role = next((r for r in roles if r.id == role_id), None)
+        role = next((r for r in roles if r.name == role_id), None)
         if not role:
             click.echo(f"Error: Role with ID {role_id} not found.", err=True)
             return
@@ -61,6 +66,11 @@ def deactivate(role_id: str, justification: str):
         result = pim.deactivate_role(role, justification)
         click.echo(f"Successfully deactivated role: {role.display_name}")
         
+        # update the cache
+        roles = pim.get_roles()
+        with open(ROLES_CACHE_FILE, 'w') as f:
+            json.dump(pim.serialize_roles(roles), f, indent=4)
+
     except NotAuthenticatedError:
         click.echo("Error: Not authenticated with Azure. Please run 'az login' first.", err=True)
     except PIMError as e:
@@ -91,7 +101,7 @@ def list_roles(verbose: bool, update: bool):
             roles = pim.get_roles()
             # Cache the roles
             with open(ROLES_CACHE_FILE, 'w') as f:
-                json.dump(pim.serialize_roles(roles), f)
+                json.dump(pim.serialize_roles(roles), f, indent=4)
 
         if not roles:
             click.echo("No PIM roles found.")
@@ -100,7 +110,7 @@ def list_roles(verbose: bool, update: bool):
         # Prepare table data
         table_data = []
         if verbose:
-            headers = ["Role Name", "Resource", "Type", "Status", "Expiry", "Role Definition ID", "Principal ID"]
+            headers = ["Role Name", "Resource", "Type", "Status", "Expiry", "Role ID"]
             for role in roles:
                 status = "ACTIVATED" if role.assignment_type else "NOT ACTIVATED"
                 expiry = role.end_date_time.strftime('%Y-%m-%d %H:%M UTC') if role.end_date_time else "N/A"
@@ -111,8 +121,7 @@ def list_roles(verbose: bool, update: bool):
                     role.resource_type,
                     status,
                     expiry,
-                    role.role_definition_id,
-                    role.principal_id
+                    role.name
                 ])
         else:
             headers = ["Role Name", "Resource", "Status", "Expiry"]
