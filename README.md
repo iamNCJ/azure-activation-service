@@ -3,6 +3,14 @@ Auto Activate Azure Roles
 
 The tool works as a companion to the MSRA Intern's Tool.
 
+## Installation
+
+```bash
+pip install azure-activation-service
+```
+
+## Usage
+
 ```bash
 # In a bash shell that has the Azure CLI env set up
 aas list-roles  # refresh role list
