@@ -1,7 +1,10 @@
-# azure-activation-service
-Auto Activate Azure Roles
+# Azure Activation Service
 
-The tool works as a companion to the MSRA Intern's Tool.
+Auto Activate Azure Roles!
+
+The tool works as a companion to the [MSRA Intern's Tool](https://github.com/JeffreyXiang/MSRA-Intern-s-Toolkit). Many thanks for jianfeng's great project.
+
+The tool aims to produce a linux user-space service that runs periodically to activate Azure roles so that you don't need to keep your VSCode open.
 
 ## Installation
 
