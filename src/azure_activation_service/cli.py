@@ -1,7 +1,7 @@
 import click
 from tabulate import tabulate
 from .pim_client import PIMClient, NotAuthenticatedError, PIMError
-from .config import CONFIG_DIR, ROLES_CACHE_FILE
+from .config import CONFIG_DIR, ROLES_CACHE_FILE, DEFAULT_IMPORT_CONFIG_FILE, AUTO_ACTIVATE_CONFIG
 import json
 
 
@@ -147,6 +147,56 @@ def list_roles(verbose: bool, update: bool):
     except NotAuthenticatedError:
         click.echo("Error: Not authenticated with Azure. Please run 'az login' first.", err=True)
     except PIMError as e:
+        click.echo(f"Error: {str(e)}", err=True)
+
+
+@cli.command(name='import-config')
+@click.argument('config_file', type=click.Path(exists=True), required=False, default=DEFAULT_IMPORT_CONFIG_FILE)
+def import_config(config_file):
+    """Import role configuration from JSON file. If no file is specified, uses the default config file."""
+    try:
+        with open(config_file, 'r') as f:
+            config_data = json.load(f)
+
+        # Convert old format to new format if needed
+        if "autoActivationEnabled" in config_data:
+            old_config = config_data["autoActivationEnabled"]
+            pim = PIMClient()
+            roles = load_roles_from_cache(pim) or refresh_and_save_cache(pim)
+            
+            new_config = {"roles": []}
+            for role in roles:
+                auto_activate = old_config.get(role.name, False)
+                new_config["roles"].append({
+                    "id": role.name,
+                    "name": role.display_name,
+                    "resource": role.resource_name,
+                    "autoActivate": auto_activate
+                })
+            config_data = new_config
+
+        # Validate config structure
+        if "roles" not in config_data:
+            raise click.ClickException("Invalid config file format. Must contain 'roles' list.")
+
+        # Save the config
+        with open(AUTO_ACTIVATE_CONFIG, 'w') as f:
+            json.dump(config_data, f, indent=4)
+        
+        click.echo(f"Successfully imported configuration for {len(config_data['roles'])} roles")
+        
+        # Display the imported configuration
+        table_data = [
+            [r["name"], r["resource"], "Yes" if r["autoActivate"] else "No"]
+            for r in config_data["roles"]
+        ]
+        headers = ["Role Name", "Resource", "Auto-Activate"]
+        click.echo("\nImported Configuration:")
+        click.echo(tabulate(table_data, headers=headers, tablefmt="grid"))
+
+    except json.JSONDecodeError:
+        click.echo("Error: Invalid JSON file", err=True)
+    except Exception as e:
         click.echo(f"Error: {str(e)}", err=True)
 
 
