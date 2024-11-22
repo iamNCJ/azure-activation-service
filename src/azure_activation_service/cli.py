@@ -13,6 +13,7 @@ def cli():
 
 def load_roles_from_cache(pim: PIMClient) -> list | None:
     """Load roles from cache file if available"""
+    click.echo("Loading roles from cache...")
     if ROLES_CACHE_FILE.exists():
         try:
             with open(ROLES_CACHE_FILE, 'r') as f:
@@ -25,9 +26,11 @@ def load_roles_from_cache(pim: PIMClient) -> list | None:
 
 def refresh_and_save_cache(pim: PIMClient) -> list:
     """Fetch fresh roles and update cache"""
+    click.echo("Fetching roles from Azure PIM...")
     roles = pim.get_roles()
     with open(ROLES_CACHE_FILE, 'w') as f:
         json.dump(pim.serialize_roles(roles), f, indent=4)
+    click.echo("Roles cached successfully.")
     return roles
 
 
@@ -193,6 +196,8 @@ def import_config(config_file):
         headers = ["Role Name", "Resource", "Auto-Activate"]
         click.echo("\nImported Configuration:")
         click.echo(tabulate(table_data, headers=headers, tablefmt="grid"))
+        click.echo("\nTo activate roles marked for auto-activation, run 'auto-activate' command.")
+        click.echo("You can also edit the configuration file directly at: " + str(AUTO_ACTIVATE_CONFIG))
 
     except json.JSONDecodeError:
         click.echo("Error: Invalid JSON file", err=True)
@@ -234,16 +239,16 @@ def auto_activate():
                 continue
 
             if role.assignment_type:
-                click.echo(f"Skipping {role.display_name} - already activated")
+                click.echo(f"Skipping {role.display_name} {role.resource_name} - already activated")
                 skipped_count += 1
                 continue
 
             try:
                 pim.activate_role(role, "Automatic activation via CLI")
-                click.echo(f"Activated {role.display_name}")
+                click.echo(f"Activated {role.display_name} {role.resource_name}")
                 activated_count += 1
             except PIMError as e:
-                click.echo(f"Failed to activate {role.display_name}: {str(e)}", err=True)
+                click.echo(f"Failed to activate {role.display_name} {role.resource_name}: {str(e)}", err=True)
                 failed_count += 1
 
         # Refresh cache after activations
