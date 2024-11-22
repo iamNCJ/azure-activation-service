@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import List, Optional, Dict, Any
 from dataclasses import dataclass
 
+
 @dataclass
 class Role:
     """Represents an Azure PIM role."""
@@ -32,17 +33,20 @@ class Role:
                 f"Resource: {self.resource_name} ({self.resource_type})\n"
                 f"Status: {status}{expiry}")
 
+
 class PIMError(Exception):
     """Base exception for PIM-related errors."""
     pass
+
 
 class NotAuthenticatedError(PIMError):
     """Raised when user is not authenticated with Azure."""
     pass
 
+
 class PIMClient:
     """Client for managing Azure PIM roles."""
-    
+
     AZURE_MGMT_URL = "https://management.azure.com"
     API_VERSION = "2020-10-01"
 
@@ -54,21 +58,23 @@ class PIMClient:
     def _update_token(self):
         """Update the access token using AzureCliCredential."""
         try:
-            token = self.credential.get_token("https://management.azure.com/.default")
+            token = self.credential.get_token(
+                "https://management.azure.com/.default")
             self.headers = {
                 'Authorization': f'Bearer {token.token}',
                 'Content-Type': 'application/json'
             }
         except ClientAuthenticationError as e:
-            raise NotAuthenticatedError("Failed to get Azure token. Please run 'az login' first.") from e
+            raise NotAuthenticatedError(
+                "Failed to get Azure token. Please run 'az login' first.") from e
 
     def get_roles(self) -> List[Role]:
         """
         Query all PIM roles for the current user and their activation status.
-        
+
         Returns:
             List[Role]: List of available roles and their status
-            
+
         Raises:
             NotAuthenticatedError: If not authenticated with Azure
             PIMError: If the API request fails
@@ -115,7 +121,7 @@ class PIMClient:
         for eligibility in eligibilities:
             props = eligibility['properties']
             exp_props = props['expandedProperties']
-            
+
             role = Role(
                 id=eligibility['id'],
                 name=eligibility['name'],
@@ -130,7 +136,7 @@ class PIMClient:
 
             # Check if role is currently activated
             role_assignment = next(
-                (ra for ra in assignments 
+                (ra for ra in assignments
                  if ra['properties']['linkedRoleEligibilityScheduleInstanceId'] == role.id),
                 None
             )
@@ -140,6 +146,7 @@ class PIMClient:
                 role.assignment_name = role_assignment['name']
                 role.assignment_type = props['assignmentType']
                 # Handle Azure's datetime format which might have single-digit milliseconds
+
                 def parse_azure_datetime(dt_str: str) -> datetime:
                     # Replace 'Z' with '+00:00' for UTC
                     dt_str = dt_str.replace('Z', '+00:00')
@@ -152,7 +159,8 @@ class PIMClient:
                         dt_str = f"{base}.{ms}+{tz}"
                     return datetime.fromisoformat(dt_str)
 
-                role.start_date_time = parse_azure_datetime(props['startDateTime'])
+                role.start_date_time = parse_azure_datetime(
+                    props['startDateTime'])
                 role.end_date_time = parse_azure_datetime(props['endDateTime'])
 
             roles.append(role)
@@ -161,11 +169,13 @@ class PIMClient:
 
     def _get_user_id(self) -> str:
         """Get the current signed-in user's ID using Microsoft Graph API."""
-        graph_token = self.credential.get_token("https://graph.microsoft.com/.default").token
+        graph_token = self.credential.get_token(
+            "https://graph.microsoft.com/.default").token
         headers = {"Authorization": f"Bearer {graph_token}"}
-        
-        response = requests.get("https://graph.microsoft.com/v1.0/me", headers=headers)
-        
+
+        response = requests.get(
+            "https://graph.microsoft.com/v1.0/me", headers=headers)
+
         if response.status_code != 200:
             raise PIMError(f"Failed to get user ID: {response.text}")
 
@@ -174,21 +184,21 @@ class PIMClient:
     def activate_role(self, role: Role, justification: str = "PIM role activation via Python SDK") -> Dict[str, Any]:
         """
         Activate a specific PIM role.
-        
+
         Args:
             role: The role to activate
             justification: Reason for activation
-            
+
         Returns:
             Dict[str, Any]: Activation response from the API
-            
+
         Raises:
             NotAuthenticatedError: If not authenticated with Azure
             PIMError: If the activation request fails
         """
         # Get user ID and role policy in parallel
         user_id = self._get_user_id()  # Get user ID from Graph API
-        
+
         policy_response = requests.get(
             f"{self.AZURE_MGMT_URL}{role.scope}/providers/Microsoft.Authorization/roleManagementPolicyAssignments?api-version=2020-10-01&$filter=roleDefinitionId eq '{role.role_definition_id}'",
             headers=self.headers
@@ -202,10 +212,11 @@ class PIMClient:
             )
 
         if policy_response.status_code != 200:
-            raise PIMError(f"Failed to get role policy: {policy_response.text}")
+            raise PIMError(
+                f"Failed to get role policy: {policy_response.text}")
 
         policy_data = policy_response.json()
-        
+
         # Extract maximum duration from policy
         max_duration = next(
             (rule['maximumDuration']
@@ -240,8 +251,8 @@ class PIMClient:
         }
 
         activation_url = (f"{self.AZURE_MGMT_URL}{role.scope}/providers/Microsoft.Authorization/"
-                         f"roleAssignmentScheduleRequests/{str(uuid.uuid4())}?api-version={self.API_VERSION}")
-        
+                          f"roleAssignmentScheduleRequests/{str(uuid.uuid4())}?api-version={self.API_VERSION}")
+
         response = requests.put(
             activation_url,
             headers=self.headers,
@@ -256,14 +267,14 @@ class PIMClient:
     def deactivate_role(self, role: Role, justification: str = "PIM role deactivation via Python SDK") -> Dict[str, Any]:
         """
         Deactivate a specific PIM role.
-        
+
         Args:
             role: The role to deactivate
             justification: Reason for deactivation
-            
+
         Returns:
             Dict[str, Any]: Deactivation response from the API
-            
+
         Raises:
             NotAuthenticatedError: If not authenticated with Azure
             PIMError: If the deactivation request fails
@@ -279,8 +290,8 @@ class PIMClient:
         }
 
         deactivation_url = (f"{self.AZURE_MGMT_URL}{role.scope}/providers/Microsoft.Authorization/"
-                           f"roleAssignmentScheduleRequests/{str(uuid.uuid4())}?api-version={self.API_VERSION}")
-        
+                            f"roleAssignmentScheduleRequests/{str(uuid.uuid4())}?api-version={self.API_VERSION}")
+
         response = requests.put(
             deactivation_url,
             headers=self.headers,
@@ -306,11 +317,11 @@ def main():
     try:
         # Initialize PIM client
         pim = PIMClient()
-        
+
         # Get all roles
         print("Fetching PIM roles...")
         roles = pim.get_roles()
-        
+
         if not roles:
             print("No PIM roles found.")
             return
