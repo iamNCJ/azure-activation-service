@@ -13,4 +13,4 @@ systemctl --user enable azure-pim-activator  # enable user service
 loginctl enable-linger $USER  # to keep user service active
 ```
 
-The tool reads and stores everything in `$AZURE_CONFIG_DIR`, so if you are working with multiple users you can do the above operations with different `$AZURE_CONFIG_DIR`.
+The tool reads and stores everything in `$AZURE_CONFIG_DIR`, so if you are working with multiple users you can do the above operations with different `$AZURE_CONFIG_DIR` and set a different service name when running `ass generate-service [another-name]`.
