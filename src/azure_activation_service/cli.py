@@ -11,6 +11,26 @@ def cli():
     pass
 
 
+def load_roles_from_cache(pim: PIMClient) -> list | None:
+    """Load roles from cache file if available"""
+    if ROLES_CACHE_FILE.exists():
+        try:
+            with open(ROLES_CACHE_FILE, 'r') as f:
+                cache_data = json.load(f)
+                return pim.deserialize_roles(cache_data)
+        except (json.JSONDecodeError, KeyError):
+            return None
+    return None
+
+
+def refresh_and_save_cache(pim: PIMClient) -> list:
+    """Fetch fresh roles and update cache"""
+    roles = pim.get_roles()
+    with open(ROLES_CACHE_FILE, 'w') as f:
+        json.dump(pim.serialize_roles(roles), f, indent=4)
+    return roles
+
+
 @cli.command()
 @click.argument('role-id')
 @click.option('--justification', '-j', default="CLI activation request", help='Justification for role activation')
@@ -18,7 +38,8 @@ def activate(role_id: str, justification: str):
     """Activate an Azure role by its ID"""
     try:
         pim = PIMClient()
-        roles = pim.get_roles()
+        # Try to load from cache first
+        roles = load_roles_from_cache(pim) or refresh_and_save_cache(pim)
         
         # Find role by ID
         role = next((r for r in roles if r.name == role_id), None)
@@ -33,10 +54,8 @@ def activate(role_id: str, justification: str):
         result = pim.activate_role(role, justification)
         click.echo(f"Successfully activated role: {role.display_name} - {role.resource_name}")
 
-        # update the cache
-        roles = pim.get_roles()
-        with open(ROLES_CACHE_FILE, 'w') as f:
-            json.dump(pim.serialize_roles(roles), f, indent=4)
+        # Refresh cache after activation
+        refresh_and_save_cache(pim)
         
     except NotAuthenticatedError:
         click.echo("Error: Not authenticated with Azure. Please run 'az login' first.", err=True)
@@ -51,7 +70,8 @@ def deactivate(role_id: str, justification: str):
     """Deactivate an Azure role by its ID"""
     try:
         pim = PIMClient()
-        roles = pim.get_roles()
+        # Try to load from cache first
+        roles = load_roles_from_cache(pim) or refresh_and_save_cache(pim)
         
         # Find role by ID
         role = next((r for r in roles if r.name == role_id), None)
@@ -66,10 +86,8 @@ def deactivate(role_id: str, justification: str):
         result = pim.deactivate_role(role, justification)
         click.echo(f"Successfully deactivated role: {role.display_name}")
         
-        # update the cache
-        roles = pim.get_roles()
-        with open(ROLES_CACHE_FILE, 'w') as f:
-            json.dump(pim.serialize_roles(roles), f, indent=4)
+        # Refresh cache after deactivation
+        refresh_and_save_cache(pim)
 
     except NotAuthenticatedError:
         click.echo("Error: Not authenticated with Azure. Please run 'az login' first.", err=True)
@@ -84,24 +102,11 @@ def list_roles(verbose: bool, update: bool):
     """List all available Azure PIM roles"""
     try:
         pim = PIMClient()
-        roles = None
         
-        # Check if we should use cache
-        if not update and ROLES_CACHE_FILE.exists():
-            try:
-                with open(ROLES_CACHE_FILE, 'r') as f:
-                    cache_data = json.load(f)
-                    # Convert cached data back to Role objects
-                    roles = pim.deserialize_roles(cache_data)
-            except (json.JSONDecodeError, KeyError):
-                roles = None
-        
-        # Fetch fresh data if needed
-        if roles is None or update:
-            roles = pim.get_roles()
-            # Cache the roles
-            with open(ROLES_CACHE_FILE, 'w') as f:
-                json.dump(pim.serialize_roles(roles), f, indent=4)
+        # Load roles based on update flag and cache availability
+        roles = None if update else load_roles_from_cache(pim)
+        if roles is None:
+            roles = refresh_and_save_cache(pim)
 
         if not roles:
             click.echo("No PIM roles found.")
