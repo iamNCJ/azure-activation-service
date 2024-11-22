@@ -200,6 +200,68 @@ def import_config(config_file):
         click.echo(f"Error: {str(e)}", err=True)
 
 
+@cli.command(name='auto-activate')
+def auto_activate():
+    """Automatically activate roles marked for auto-activation in the config"""
+    try:
+        # Load auto-activate config
+        if not AUTO_ACTIVATE_CONFIG.exists():
+            click.echo("No auto-activate configuration found. Use 'import-config' to set up auto-activation.", err=True)
+            return
+
+        with open(AUTO_ACTIVATE_CONFIG, 'r') as f:
+            config_data = json.load(f)
+
+        if not config_data.get('roles'):
+            click.echo("No roles configured for auto-activation.", err=True)
+            return
+
+        pim = PIMClient()
+        roles = refresh_and_save_cache(pim)  # force update of cache
+        
+        activated_count = 0
+        skipped_count = 0
+        failed_count = 0
+
+        for config_role in config_data['roles']:
+            if not config_role.get('autoActivate'):
+                continue
+
+            role = next((r for r in roles if r.name == config_role['id']), None)
+            if not role:
+                click.echo(f"Warning: Configured role {config_role['name']} not found in available roles", err=True)
+                failed_count += 1
+                continue
+
+            if role.assignment_type:
+                click.echo(f"Skipping {role.display_name} - already activated")
+                skipped_count += 1
+                continue
+
+            try:
+                pim.activate_role(role, "Automatic activation via CLI")
+                click.echo(f"Activated {role.display_name}")
+                activated_count += 1
+            except PIMError as e:
+                click.echo(f"Failed to activate {role.display_name}: {str(e)}", err=True)
+                failed_count += 1
+
+        # Refresh cache after activations
+        refresh_and_save_cache(pim)
+        
+        click.echo(f"\nAuto-activation complete:")
+        click.echo(f"  Activated: {activated_count}")
+        click.echo(f"  Skipped (already active): {skipped_count}")
+        click.echo(f"  Failed: {failed_count}")
+
+    except NotAuthenticatedError:
+        click.echo("Error: Not authenticated with Azure. Please run 'az login' first.", err=True)
+    except json.JSONDecodeError:
+        click.echo("Error: Invalid auto-activate configuration file", err=True)
+    except Exception as e:
+        click.echo(f"Error: {str(e)}", err=True)
+
+
 def main():
     cli()
 
