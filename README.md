@@ -18,8 +18,8 @@ pip install azure-activation-service
 # In a bash shell that has the Azure CLI env set up
 aas list-roles  # refresh role list
 aas import-config  # import auto-renew config from MSRA Intern's Tool
-ass auto-activate  # auto activate roles
-ass generate-service  # generate user service
+aas auto-activate  # auto activate roles
+aas generate-service  # generate user service
 systemctl --user enable azure-pim-activator  # enable user service
 loginctl enable-linger $USER  # to keep user service active
 ```
