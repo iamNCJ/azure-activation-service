@@ -1,3 +1,4 @@
+from typing import List, Optional
 import click
 from tabulate import tabulate
 from .pim_client import PIMClient, NotAuthenticatedError, PIMError
@@ -25,7 +26,7 @@ def cli():
     pass
 
 
-def load_roles_from_cache(pim: PIMClient) -> list | None:
+def load_roles_from_cache(pim: PIMClient) -> Optional[List]:
     """Load roles from cache file if available"""
     click.echo("Loading roles from cache...")
     if ROLES_CACHE_FILE.exists():
@@ -38,7 +39,7 @@ def load_roles_from_cache(pim: PIMClient) -> list | None:
     return None
 
 
-def refresh_and_save_cache(pim: PIMClient) -> list:
+def refresh_and_save_cache(pim: PIMClient) -> List:
     """Fetch fresh roles and update cache"""
     click.echo("Fetching roles from Azure PIM...")
     roles = pim.get_roles()
