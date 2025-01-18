@@ -6,7 +6,7 @@ import json
 import asyncio
 import signal
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 import os
 
@@ -46,6 +46,18 @@ def refresh_and_save_cache(pim: PIMClient) -> list:
         json.dump(pim.serialize_roles(roles), f, indent=4)
     click.echo("Roles cached successfully.")
     return roles
+
+
+def calculate_expiry(end_date_time):
+    """Calculate the expiry status of a role."""
+    if end_date_time:
+        now = datetime.now(timezone.utc)
+        if end_date_time < now:
+            return f"Expired {now - end_date_time} ago"
+        else:
+            return f"In {end_date_time - now}"
+    else:
+        return "N/A"
 
 
 @cli.command()
@@ -141,9 +153,7 @@ def list_roles(verbose: bool, update: bool):
                        "Type", "Status", "Expiry", "Role ID"]
             for role in roles:
                 status = "ACTIVATED" if role.assignment_type else "NOT ACTIVATED"
-                expiry = role.end_date_time.strftime(
-                    '%Y-%m-%d %H:%M UTC') if role.end_date_time else "N/A"
-
+                expiry = calculate_expiry(role.end_date_time)
                 table_data.append([
                     role.display_name,
                     role.resource_name,
@@ -156,9 +166,7 @@ def list_roles(verbose: bool, update: bool):
             headers = ["Role Name", "Resource", "Status", "Expiry"]
             for role in roles:
                 status = "ACTIVATED" if role.assignment_type else "NOT ACTIVATED"
-                expiry = role.end_date_time.strftime(
-                    '%Y-%m-%d %H:%M UTC') if role.end_date_time else "N/A"
-
+                expiry = calculate_expiry(role.end_date_time)
                 table_data.append([
                     role.display_name,
                     role.resource_name,
