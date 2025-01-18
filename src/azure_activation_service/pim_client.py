@@ -174,7 +174,7 @@ class PIMClient:
             # Check if role is currently activated
             role_assignment = next(
                 (ra for ra in assignments
-                 if ra['properties']['linkedRoleEligibilityScheduleInstanceId'] == role.id),
+                 if ra['properties'].get('linkedRoleEligibilityScheduleInstanceId') == role.id),
                 None
             )
 
